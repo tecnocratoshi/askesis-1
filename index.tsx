@@ -82,6 +82,24 @@ function setupInstallPromptCapture() {
     });
 }
 
+function renderCriticalBootError(loader: HTMLElement) {
+    const wrapper = document.createElement('div');
+    wrapper.style.color = '#ff6b6b';
+    wrapper.style.padding = '2rem';
+    wrapper.style.textAlign = 'center';
+
+    const title = document.createElement('h3');
+    title.textContent = 'Falha Crítica';
+
+    const retryButton = document.createElement('button');
+    retryButton.type = 'button';
+    retryButton.textContent = 'Tentar Novamente';
+    retryButton.addEventListener('click', () => window.location.reload());
+
+    wrapper.append(title, retryButton);
+    loader.replaceChildren(wrapper);
+}
+
 function recommendInstallForNewUsers(isFirstTimeUser: boolean) {
     if (!isFirstTimeUser) return;
     if (isRunningAsInstalledPwa()) return;
@@ -121,9 +139,12 @@ function recommendInstallForNewUsers(isFirstTimeUser: boolean) {
     showConfirmationModal(
         t('installPromptBody'),
         async () => {
+            const promptEvent = deferredInstallPrompt;
+            if (!promptEvent) return;
+
             try {
-                await deferredInstallPrompt.prompt();
-                await deferredInstallPrompt.userChoice;
+                await promptEvent.prompt();
+                await promptEvent.userChoice;
                 deferredInstallPrompt = null;
             } catch (error) {
                 logger.warn('Install prompt failed', error);
@@ -280,7 +301,7 @@ const startApp = () => {
         if ((window as any).showFatalError) {
             (window as any).showFatalError("Erro na inicialização: " + (err.message || err));
         } else if(loader && loader.isConnected) {
-            loader.innerHTML = '<div style="color:#ff6b6b;padding:2rem;text-align:center;"><h3>Falha Crítica</h3><button onclick="location.reload()">Tentar Novamente</button></div>';
+            renderCriticalBootError(loader);
         }
     });
 };
