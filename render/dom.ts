@@ -39,3 +39,52 @@ export function updateReelRotaryARIA(viewportEl: HTMLElement, currentIndex: numb
     viewportEl.setAttribute('aria-valuetext', options[currentIndex] || '');
     viewportEl.setAttribute('tabindex', '0');
 }
+
+/**
+ * Renderiza SVG confiavel sem usar innerHTML no elemento de destino.
+ */
+export function setTrustedSvgContent(element: Element | null, svgOrText: string) {
+    if (!element) return;
+    if (!svgOrText) {
+        element.replaceChildren();
+        return;
+    }
+
+    if (!svgOrText.trim().startsWith('<svg')) {
+        element.textContent = svgOrText;
+        return;
+    }
+
+    try {
+        const parsed = new DOMParser().parseFromString(svgOrText, 'image/svg+xml');
+        const svg = parsed.documentElement;
+        if (svg.nodeName.toLowerCase() !== 'svg') {
+            element.textContent = svgOrText;
+            return;
+        }
+        const imported = document.importNode(svg, true);
+        element.replaceChildren(imported);
+    } catch {
+        element.textContent = svgOrText;
+    }
+}
+
+/**
+ * Renderiza markup leve e confiavel usando DocumentFragment, sem atribuicao de innerHTML.
+ */
+export function setTrustedHtmlFragment(target: HTMLElement | null, html: string) {
+    if (!target) return;
+    const normalized = html || '';
+    const current = target.getAttribute('data-rendered-html') || '';
+    if (current === normalized) return;
+
+    if (!normalized) {
+        target.replaceChildren();
+        target.setAttribute('data-rendered-html', '');
+        return;
+    }
+
+    const fragment = document.createRange().createContextualFragment(normalized);
+    target.replaceChildren(fragment);
+    target.setAttribute('data-rendered-html', normalized);
+}

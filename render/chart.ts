@@ -28,7 +28,7 @@ import { calculateDaySummary } from '../services/selectors';
 import { ui } from './ui';
 import { t, formatDate, formatDecimal, formatEvolution } from '../i18n';
 import { getTodayUTCIso, parseUTCIsoDate, toUTCIsoDateString, MS_PER_DAY, logger } from '../utils';
-import { setTextContent } from './dom';
+import { setTextContent, setTrustedHtmlFragment } from './dom';
 import {
     CHART_DAYS,
     CHART_INITIAL_SCORE,
@@ -328,7 +328,7 @@ export function renderChart() {
 
         if (ui.chart.title) {
             const newTitle = t('appName');
-            if (ui.chart.title.textContent !== newTitle) ui.chart.title.textContent = newTitle;
+            setTrustedHtmlFragment(ui.chart.title, newTitle);
         }
         if (ui.chart.subtitle) {
             const summary = calculateDaySummary(state.selectedDate);

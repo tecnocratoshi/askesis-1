@@ -60,7 +60,7 @@ import {
 import { t, setLanguage } from '../i18n';
 import { setupReelRotary } from '../render/rotary';
 import { simpleMarkdownToHTML, ensureOneSignalReady, setLocalPushOptIn, getContrastColor, addDays, parseUTCIsoDate, toUTCIsoDateString, triggerHaptic, logger, escapeHTML, sanitizeText, getTodayUTCIso, getNormalizedKeyboardKey, isActivationKeyboardEvent } from '../utils';
-import { setTextContent } from '../render/dom';
+import { setTextContent, setTrustedSvgContent } from '../render/dom';
 
 // --- STATIC HELPERS ---
 
@@ -509,7 +509,7 @@ function _applySafeIconToEditForm(rawIcon: string) {
     if (!state.editingHabit) return;
     const safeIcon = sanitizeHabitIcon(rawIcon, '❓');
     state.editingHabit.formData.icon = safeIcon;
-    ui.habitIconPickerBtn.innerHTML = safeIcon;
+    setTrustedSvgContent(ui.habitIconPickerBtn, safeIcon);
 }
 
 const _handleIconGridClick = (e: MouseEvent) => {
