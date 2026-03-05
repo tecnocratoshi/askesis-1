@@ -288,15 +288,29 @@ export function setLocalPushOptIn(value: boolean) {
 
 export function hasRequestedPushPermission(): boolean {
     try {
-        return localStorage.getItem(PUSH_PERMISSION_REQUESTED_KEY) === '1';
+        return localStorage.getItem(PUSH_PERMISSION_REQUESTED_KEY) !== null;
     } catch {
         return false;
     }
 }
 
+export function getPushPermissionRequestAgeMs(): number | null {
+    try {
+        const raw = localStorage.getItem(PUSH_PERMISSION_REQUESTED_KEY);
+        if (!raw) return null;
+        // Backward compatibility: old boolean marker means "requested long ago".
+        if (raw === '1') return Number.POSITIVE_INFINITY;
+        const ts = Number(raw);
+        if (!Number.isFinite(ts) || ts <= 0) return Number.POSITIVE_INFINITY;
+        return Math.max(0, Date.now() - ts);
+    } catch {
+        return null;
+    }
+}
+
 export function markPushPermissionRequested() {
     try {
-        localStorage.setItem(PUSH_PERMISSION_REQUESTED_KEY, '1');
+        localStorage.setItem(PUSH_PERMISSION_REQUESTED_KEY, String(Date.now()));
     } catch {}
 }
 
