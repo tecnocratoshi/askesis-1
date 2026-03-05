@@ -8,7 +8,7 @@
 
 <div align="center" style="margin-top: 0; font-size: 0; line-height: 0;">
   <a href="https://askesis.vercel.app/" target="_blank" rel="noopener noreferrer" style="display: block; text-decoration: none; border: 0;">
-    <img src="assets/header-unified.svg" alt="Askesis, plataformas e serviços" width="100%" style="display: block; width: 100%; height: auto; object-fit: contain;">
+    <img src="assets/header-unified-pt.svg" alt="Askesis, plataformas e serviços" width="100%" style="display: block; width: 100%; height: auto; object-fit: contain;">
   </a>
   <img src="assets/header-badges.svg" alt="Badges do Askesis" width="100%" style="display: block; margin-top: 2px;">
 </div>
