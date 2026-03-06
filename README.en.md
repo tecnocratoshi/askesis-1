@@ -19,7 +19,11 @@
   <img src="assets/AristotelesIngles.jpg" alt="Aristotle (English)" width="100%" style="border-radius: 10px; border: 1px solid #2a2a2a; display: block; margin: 0 auto;">
 </div>
 
+<br>
+
 Project epigraph — directly connects with Askesis's purpose as a **habit tracker**: consistency and excellence are built through daily practice, and **habits** are the core mechanism that helps train and track them.<br>
+
+<br>
 
 <table>
 <tr>
