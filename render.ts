@@ -222,7 +222,7 @@ export function viewTransitionRender(direction?: 'forward' | 'back') {
     if ('startViewTransition' in document) {
         const dir = direction || 'forward';
         document.documentElement.dataset.flipDir = dir;
-        const vt = (document as any).startViewTransition(() => renderApp());
+        const vt = document.startViewTransition!(() => renderApp());
         vt.finished.then(() => { delete document.documentElement.dataset.flipDir; }).catch(() => { delete document.documentElement.dataset.flipDir; });
     } else {
         renderApp();
@@ -235,11 +235,11 @@ export function renderApp() {
     renderCalendar();
     renderHabits();
 
-    if ('scheduler' in window && (window as any).scheduler) {
-        (window as any).scheduler.postTask(() => {
+    if ('scheduler' in window && window.scheduler) {
+        window.scheduler.postTask(() => {
             renderAINotificationState();
             renderChart();
-            (window as any).scheduler!.postTask(() => renderStoicQuote(), { priority: 'background' });
+            window.scheduler!.postTask(() => renderStoicQuote(), { priority: 'background' });
         }, { priority: 'user-visible' });
     } else {
         requestAnimationFrame(() => {
@@ -260,8 +260,8 @@ export function updateNotificationUI() {
     }
 
     // Zero-deps por padrão: se OneSignal não estiver carregado, usa permissões nativas.
-    if (typeof window === 'undefined' || typeof (window as any).OneSignal === 'undefined') {
-        const permission = (typeof Notification !== 'undefined' && (Notification as any).permission) ? (Notification as any).permission : 'default';
+    if (typeof window === 'undefined' || typeof window.OneSignal === 'undefined') {
+        const permission = (typeof Notification !== 'undefined' && Notification.permission) ? Notification.permission : 'default';
         const isDenied = permission === 'denied';
         const localOptIn = getLocalPushOptIn();
         const isGranted = permission === 'granted';

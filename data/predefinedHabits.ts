@@ -8,12 +8,12 @@
  * @description Catálogo estático de templates de hábitos pré-configurados.
  */
 
-import { PredefinedHabit } from '../state';
+import { PredefinedHabit, HabitGoal, Frequency } from '../state';
 import { HABIT_ICONS } from './icons';
 
 // PERFORMANCE: Constantes reutilizáveis para reduzir o Heap Footprint e ruído visual.
-const GOAL_CHECK = Object.freeze({ type: 'check', unitKey: 'unitCheck' }) as any;
-const FREQ_DAILY = Object.freeze({ type: 'daily' }) as any;
+const GOAL_CHECK: HabitGoal = Object.freeze({ type: 'check', unitKey: 'unitCheck' });
+const FREQ_DAILY: Frequency = Object.freeze({ type: 'daily' });
 
 export const PREDEFINED_HABITS: readonly PredefinedHabit[] = Object.freeze([
     // --- STOIC FOUNDATIONS ---

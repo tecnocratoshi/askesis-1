@@ -66,7 +66,7 @@ const SwipeMachine = {
 function updateLayoutMetrics() {
     const root = getComputedStyle(document.documentElement);
     SwipeMachine.actionWidth = parseInt(root.getPropertyValue('--swipe-action-width')) || 60;
-    SwipeMachine.hasTypedOM = typeof window !== 'undefined' && !!(window.CSS && (window as any).CSSTranslate && CSS.px);
+    SwipeMachine.hasTypedOM = typeof window !== 'undefined' && !!(window.CSS && window.CSSTranslate && CSS.px);
 }
 
 const _stopLimitVibration = () => {
@@ -161,7 +161,7 @@ const _renderFrame = () => {
         }
 
         if (SwipeMachine.hasTypedOM && SwipeMachine.content.attributeStyleMap) {
-            SwipeMachine.content.attributeStyleMap.set('transform', new (window as any).CSSTranslate(CSS.px(visualX), CSS.px(0)));
+            SwipeMachine.content.attributeStyleMap.set('transform', new window.CSSTranslate!(CSS.px(visualX), CSS.px(0)));
         } else {
             SwipeMachine.content.style.transform = `translateX(${visualX}px)`;
         }
@@ -198,7 +198,7 @@ const _forceReset = () => {
         if (pointerId !== -1) {
             try { 
                 if (card.hasPointerCapture(pointerId)) card.releasePointerCapture(pointerId); 
-            } catch(e){}
+            } catch(_e: unknown){}
         }
     }
     if (content) {
@@ -277,7 +277,7 @@ const _triggerDrag = () => {
 
     try {
         SwipeMachine.card.setPointerCapture(SwipeMachine.pointerId);
-    } catch (e) {
+    } catch (e: unknown) {  // setPointerCapture pode falhar em certos dispositivos
         window.removeEventListener('touchmove', _bridgeTouchBlock);
         if (SwipeMachine.container) SwipeMachine.container.classList.remove('is-locking-scroll');
         _forceReset();
@@ -335,7 +335,7 @@ const _onPointerMove = (e: PointerEvent) => {
                 _cancelLongPress();
                 try {
                     if (SwipeMachine.card) SwipeMachine.card.setPointerCapture(e.pointerId);
-                } catch(err) {}
+                } catch(_err: unknown) {}
 
                 SwipeMachine.state = 'SWIPING';
                 document.body.classList.add('is-interaction-active');

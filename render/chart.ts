@@ -86,7 +86,7 @@ export const chartInteractionState = {
     chartMinVal: 0,
     chartValueRange: 100,
     lastRenderedPointIndex: -1,
-    hasTypedOM: typeof window !== 'undefined' && !!(window.CSS && (window as any).CSSTranslate && CSS.px)
+    hasTypedOM: typeof window !== 'undefined' && !!(window.CSS && window.CSSTranslate && CSS.px)
 };
 
 // MEMOIZATION STATE

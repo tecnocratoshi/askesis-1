@@ -72,7 +72,7 @@ function buildManageHabitListItem(item: ManageHabitItem, today: string): HTMLLIE
 
     const nameEl = document.createElement('span');
     nameEl.className = 'habit-name';
-    nameEl.textContent = name;
+    setTextContent(nameEl, name);
     detailsWrap.appendChild(nameEl);
 
     if (subtitle) {
@@ -80,7 +80,7 @@ function buildManageHabitListItem(item: ManageHabitItem, today: string): HTMLLIE
         subtitleEl.className = 'habit-subtitle';
         subtitleEl.style.fontSize = '11px';
         subtitleEl.style.color = 'var(--text-tertiary)';
-        subtitleEl.textContent = subtitle;
+        setTextContent(subtitleEl, subtitle);
         detailsWrap.appendChild(subtitleEl);
     }
 
@@ -108,7 +108,7 @@ function buildManageHabitListItem(item: ManageHabitItem, today: string): HTMLLIE
         // Status (Encerrado/Graduado) ao lado da lixeira.
         const statusEl = document.createElement('span');
         statusEl.className = 'habit-name-status';
-        statusEl.textContent = statusText;
+        setTextContent(statusEl, statusText);
         actions.appendChild(statusEl);
         actions.appendChild(buildManageActionButton(
             'permanent-delete-habit-btn',
@@ -183,11 +183,11 @@ function buildExploreHabitItem(h: PredefinedHabit, index: number): HTMLElement {
 
     const name = document.createElement('div');
     name.className = 'name';
-    name.textContent = t(h.nameKey);
+    setTextContent(name, t(h.nameKey));
 
     const subtitle = document.createElement('div');
     subtitle.className = 'subtitle';
-    subtitle.textContent = t(h.subtitleKey);
+    setTextContent(subtitle, t(h.subtitleKey));
 
     details.append(name, subtitle);
     item.append(icon, details);
@@ -204,7 +204,7 @@ function buildTimeSegmentedButton(time: TimeOfDay, isSelected: boolean): HTMLBut
     replaceWithHtmlFragment(icon, getTimeOfDayIcon(time));
     const label = document.createElement('span');
     label.className = 'segmented-control-option-label';
-    label.textContent = getTimeOfDayName(time);
+    setTextContent(label, getTimeOfDayName(time));
     btn.append(icon, label);
     return btn;
 }
@@ -390,14 +390,14 @@ export function renderFrequencyOptions() {
         const dailyRow = document.createElement('div');
         dailyRow.className = 'form-row';
         const dailyLabel = document.createElement('label');
-        dailyLabel.textContent = t('freqDaily');
+        setTextContent(dailyLabel, t('freqDaily'));
         dailyRow.appendChild(dailyLabel);
 
         const infoRow = document.createElement('div');
         infoRow.className = 'form-row form-row--vertical';
         const info = document.createElement('p');
         info.className = 'frequency-info';
-        info.textContent = t('attitudinalFrequencyInfo');
+        setTextContent(info, t('attitudinalFrequencyInfo'));
         infoRow.appendChild(info);
 
         root.append(dailyRow, infoRow);
@@ -434,7 +434,7 @@ export function renderFrequencyOptions() {
         dayInput.checked = sel.has(d);
         const dayBtn = document.createElement('span');
         dayBtn.className = 'weekday-button';
-        dayBtn.textContent = t(`weekday${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]}`).charAt(0);
+        setTextContent(dayBtn, t(`weekday${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]}`).charAt(0));
         dayLabel.append(dayInput, dayBtn);
         weekdayPicker.appendChild(dayLabel);
     });
@@ -454,23 +454,23 @@ export function renderFrequencyOptions() {
     decBtn.type = 'button';
     decBtn.className = 'stepper-btn';
     decBtn.dataset.action = 'interval-decrement';
-    decBtn.textContent = '-';
+    setTextContent(decBtn, '-');
 
     const amountDisplay = document.createElement('span');
     amountDisplay.className = 'interval-amount-display';
-    amountDisplay.textContent = formatInteger(am);
+    setTextContent(amountDisplay, formatInteger(am));
 
     const incBtn = document.createElement('button');
     incBtn.type = 'button';
     incBtn.className = 'stepper-btn';
     incBtn.dataset.action = 'interval-increment';
-    incBtn.textContent = '+';
+    setTextContent(incBtn, '+');
 
     const unitBtn = document.createElement('button');
     unitBtn.type = 'button';
     unitBtn.className = 'unit-toggle-btn';
     unitBtn.dataset.action = 'interval-unit-toggle';
-    unitBtn.textContent = t(un === 'days' ? 'unitDays' : 'unitWeeks', { count: am });
+    setTextContent(unitBtn, t(un === 'days' ? 'unitDays' : 'unitWeeks', { count: am }));
 
     controlGroup.append(decBtn, amountDisplay, incBtn, unitBtn);
     intervalDetails.appendChild(controlGroup);
@@ -497,7 +497,7 @@ export function refreshEditModalUI() {
     if (ce) { const p = fd.philosophy; if (p?.conscienceKey) { setTextContent(ce, t(p.conscienceKey)); ce.style.display = 'block'; } else ce.style.display = 'none'; }
 }
 
-export function openEditModal(habit: any, targetDateOverride?: string, onClose?: () => void) {
+export function openEditModal(habit: Habit | HabitTemplate | null, targetDateOverride?: string, onClose?: () => void) {
     const isN = !habit || !habit.id;
     const safe = getSafeDate(targetDateOverride || state.selectedDate);
 
@@ -518,7 +518,7 @@ export function openEditModal(habit: any, targetDateOverride?: string, onClose?:
             : { ...originalFrequency };
 
         fd = {
-            ...(scheduleToEdit as any), // Cast para evitar erro de tipo com name/nameKey
+            ...(scheduleToEdit as Partial<HabitTemplate>), // HabitSchedule é compatível estruturalmente com HabitTemplate
             times: [...scheduleToEdit.times],
             frequency: newFrequency,
             goal: { ...scheduleToEdit.goal }

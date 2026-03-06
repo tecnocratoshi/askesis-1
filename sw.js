@@ -95,14 +95,17 @@ if (self.workbox) {
     self.addEventListener('install', (event) => {
         self.skipWaiting();
         event.waitUntil(
-            caches.open(CACHE_NAME).then(cache => {
-                return Promise.all(CACHE_FILES.map(url => 
-                    fetch(url, RELOAD_OPTS).then(res => {
-                        if (!res.ok) throw new Error(`[SW] Failed to cache: ${url}`);
-                        return cache.put(url, res);
-                    })
-                ));
-            })
+            caches.open(CACHE_NAME).then(cache =>
+                // allSettled: a single unavailable asset never aborts the entire SW install
+                Promise.allSettled(CACHE_FILES.map(url =>
+                    fetch(url, RELOAD_OPTS)
+                        .then(res => {
+                            if (!res.ok) throw new Error(`${res.status}`);
+                            return cache.put(url, res);
+                        })
+                        .catch(err => console.warn('[SW] Skipping uncacheable asset:', url, err.message))
+                ))
+            )
         );
     });
 

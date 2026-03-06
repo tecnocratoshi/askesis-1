@@ -10,7 +10,7 @@
  */
 
 import { logger, getTodayUTCIso } from '../utils';
-import { AppState } from '../state';
+import { AppState, SyncLog } from '../state';
 import { normalizeHabitMode, normalizeTimesByMode, normalizeFrequencyByMode } from './habitActions';
 
 /**
@@ -43,7 +43,7 @@ function migrateBitmasksV8toV9(logs: Map<string, bigint>): Map<string, bigint> {
     return newMap;
 }
 
-export function migrateState(loadedState: any, targetVersion: number): AppState {
+export function migrateState(loadedState: unknown, targetVersion: number): AppState {
     // 1. FRESH INSTALL / NULL STATE
     if (!loadedState) {
         return { 
@@ -75,14 +75,17 @@ export function migrateState(loadedState: any, targetVersion: number): AppState 
                 ? state.monthlyLogs 
                 : Object.entries(state.monthlyLogs);
                 
-            state.monthlyLogs = new Map(entries.map(([k, v]: [string, any]) => {
-                let val = v;
-                if (v && typeof v === 'object' && v.__type === 'bigint') {
-                    val = BigInt(v.val);
-                } else if (typeof v !== 'bigint') {
-                    val = BigInt(v);
+            state.monthlyLogs = new Map(entries.map(([k, v]: [string, unknown]) => {
+                let bigVal: bigint;
+                const obj = (v !== null && typeof v === 'object') ? v as Record<string, unknown> : null;
+                if (obj && obj['__type'] === 'bigint') {
+                    bigVal = BigInt(obj['val'] as string);
+                } else if (typeof v === 'bigint') {
+                    bigVal = v;
+                } else {
+                    bigVal = BigInt(v as string);
                 }
-                return [k, val];
+                return [k, bigVal] as [string, bigint];
             }));
         } catch (e) {
             logger.warn("[Migration] Failed to hydrate monthlyLogs", e);
@@ -106,23 +109,23 @@ export function migrateState(loadedState: any, targetVersion: number): AppState 
     // 4. SCHEMA UPGRADE: V9 -> V10 (AI Quota & Hash)
     // Inicializa campos de quota se não existirem
     if (state.aiDailyCount === undefined) {
-        (state as any).aiDailyCount = 0;
-        (state as any).aiQuotaDate = getTodayUTCIso();
-        (state as any).lastAIContextHash = null;
+        state.aiDailyCount = 0;
+        state.aiQuotaDate = getTodayUTCIso();
+        state.lastAIContextHash = null;
     }
 
     if (state.hasOnboarded === undefined) {
-        (state as any).hasOnboarded = true;
+        Object.assign(state, { hasOnboarded: true });
     }
 
     if (!state.syncLogs) {
-        (state as any).syncLogs = [];
+        Object.assign(state, { syncLogs: [] });
     } else {
-        (state as any).syncLogs = state.syncLogs.map((log: any) => ({
+        Object.assign(state, { syncLogs: state.syncLogs.map((log: SyncLog) => ({
             time: log.time,
             msg: log.msg,
             type: log.type
-        }));
+        })) });
     }
 
     // Sanitize scheduleHistory mode/times to avoid duplicate TimeOfDay entries
@@ -133,7 +136,7 @@ export function migrateState(loadedState: any, targetVersion: number): AppState 
                 const schedule = habit.scheduleHistory[i];
                 const normalizedMode = normalizeHabitMode(schedule.mode);
                 const normalizedTimes = normalizeTimesByMode(normalizedMode, schedule.times);
-                const normalizedFrequency = normalizeFrequencyByMode(normalizedMode, schedule.frequency as any);
+                const normalizedFrequency = normalizeFrequencyByMode(normalizedMode, schedule.frequency);
                 const hadModeChange = schedule.mode !== normalizedMode;
                 const hadTimesChange =
                     normalizedTimes.length !== schedule.times.length
@@ -141,24 +144,24 @@ export function migrateState(loadedState: any, targetVersion: number): AppState 
                 const hadFrequencyChange = JSON.stringify(normalizedFrequency) !== JSON.stringify(schedule.frequency);
 
                 if (hadModeChange) {
-                    (habit.scheduleHistory[i] as any).mode = normalizedMode;
+                    Object.assign(habit.scheduleHistory[i], { mode: normalizedMode });
                 }
 
                 if (hadTimesChange) {
                     logger.warn(`[Migration] Habit "${schedule.name}": normalized times for mode=${normalizedMode}`);
-                    (habit.scheduleHistory[i] as any).times = normalizedTimes;
+                    Object.assign(habit.scheduleHistory[i], { times: normalizedTimes });
                 }
 
                 if (hadFrequencyChange) {
                     logger.warn(`[Migration] Habit "${schedule.name}": normalized frequency for mode=${normalizedMode}`);
-                    (habit.scheduleHistory[i] as any).frequency = normalizedFrequency;
+                    Object.assign(habit.scheduleHistory[i], { frequency: normalizedFrequency });
                 }
             }
         }
     }
 
     // Force target version
-    (state as any).version = targetVersion;
+    Object.assign(state, { version: targetVersion });
     
     return state;
 }

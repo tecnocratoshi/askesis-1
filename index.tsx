@@ -298,8 +298,8 @@ const startApp = () => {
     init(loader).catch(err => {
         logger.error('Boot failed', err);
         isInitializing = false;
-        if ((window as any).showFatalError) {
-            (window as any).showFatalError("Erro na inicialização: " + (err.message || err));
+        if (window.showFatalError) {
+            window.showFatalError("Erro na inicialização: " + (err.message || err));
         } else if(loader && loader.isConnected) {
             renderCriticalBootError(loader);
         }

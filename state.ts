@@ -99,6 +99,16 @@ export interface SyncLog {
     type: 'success' | 'error' | 'info';
 }
 
+export interface DaySummary {
+    total: number;
+    completed: number;
+    snoozed: number;
+    pending: number;
+    completedPercent: number;
+    snoozedPercent: number;
+    showPlusIndicator: boolean;
+}
+
 export interface AppState {
     readonly version: number;
     lastModified: number; 
@@ -190,7 +200,7 @@ export const state: {
     habitAppearanceCache: Map<string, Map<string, boolean>>;
     scheduleCache: Map<string, Map<string, HabitSchedule | null>>;
     activeHabitsCache: Map<string, Array<{ habit: Habit; schedule: TimeOfDay[] }>>;
-    daySummaryCache: Map<string, any>;
+    daySummaryCache: Map<string, DaySummary>;
     selectedDate: string;
     activeLanguageCode: Language['code'];
     pending21DayHabitIds: string[];
@@ -209,7 +219,7 @@ export const state: {
     fullCalendar: { year: number; month: number; };
     uiDirtyState: { calendarVisuals: boolean; habitListStructure: boolean; chartData: boolean; };
     monthlyLogs: Map<string, bigint>;
-    editingHabit?: { isNew: boolean; habitId?: string; originalData?: any; formData: HabitTemplate; targetDate: string };
+    editingHabit?: { isNew: boolean; habitId?: string; originalData?: Habit; formData: HabitTemplate; targetDate: string };
     confirmAction: (() => void) | null;
     confirmEditAction: (() => void) | null;
     editingNoteFor: { habitId: string; date: string; time: TimeOfDay } | null;

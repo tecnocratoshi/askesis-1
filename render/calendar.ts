@@ -231,7 +231,8 @@ export function renderFullCalendar() {
         el.classList.add('other-month');
         el.setAttribute('aria-disabled', 'true');
         el.setAttribute('tabindex', '-1');
-        (el.firstElementChild!.firstElementChild as HTMLElement).textContent = formatInteger(d);
+        const prevDayNum = el.firstElementChild?.firstElementChild ?? null;
+        setTextContent(prevDayNum, formatInteger(d));
         frag.appendChild(el);
     }
 
@@ -246,7 +247,7 @@ export function renderFullCalendar() {
         const ring = el.firstElementChild as HTMLElement;
         const num = ring.firstElementChild as HTMLElement;
         
-        num.textContent = formatInteger(i);
+        setTextContent(num, formatInteger(i));
         el.dataset.date = iso;
         el.setAttribute('aria-label', dateObj.toLocaleDateString(state.activeLanguageCode, OPTS_ARIA));
 

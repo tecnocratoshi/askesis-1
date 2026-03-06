@@ -58,7 +58,7 @@ function updateTooltipPosition() {
 
         if (hasTypedOM && indicator.attributeStyleMap) {
             indicator.style.opacity = '1';
-            indicator.attributeStyleMap.set('transform', new (window as any).CSSTranslate(CSS.px(pointX), CSS.px(0)));
+            indicator.attributeStyleMap.set('transform', new window.CSSTranslate!(CSS.px(pointX), CSS.px(0)));
         } else {
             indicator.style.opacity = '1';
             indicator.style.transform = `translateX(${pointX}px)`;

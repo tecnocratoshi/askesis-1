@@ -110,17 +110,17 @@ async function _processKey(key: string) {
             syncStateWithCloud(getPersistableState(), true);
         }
         _refreshViewState(); 
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (originalKey) storeKey(originalKey);
         else clearKey();
         if (ui.syncErrorMsg) {
-            let msg = error.message || "Erro desconhecido";
+            let msg = error instanceof Error ? error.message : "Erro desconhecido";
             if (msg.includes('401') || msg.includes('Auth')) msg = "Chave Inválida ou Não Encontrada";
             ui.syncErrorMsg.textContent = msg;
             ui.syncErrorMsg.classList.remove('hidden');
         }
         setSyncStatus('syncError');
-        addSyncLog(`Falha na ativação: ${error.message}`, "error");
+        addSyncLog(`Falha na ativação: ${error instanceof Error ? error.message : String(error)}`, "error");
     } finally {
         ui.submitKeyBtn.textContent = originalBtnText;
         _toggleButtons(buttons, false);
@@ -140,10 +140,10 @@ const _handleEnableSync = () => {
         showView('displayKey');
         syncStateWithCloud(getPersistableState(), true);
         setTimeout(() => ui.enableSyncBtn.disabled = false, SYNC_ENABLE_RETRY_MS);
-    } catch (e: any) {
+    } catch (e: unknown) {
         ui.enableSyncBtn.disabled = false;
         if (ui.syncErrorMsg) {
-            ui.syncErrorMsg.textContent = e.message || "Erro ao gerar chave";
+            ui.syncErrorMsg.textContent = e instanceof Error ? e.message : "Erro ao gerar chave";
             ui.syncErrorMsg.classList.remove('hidden');
         }
     }

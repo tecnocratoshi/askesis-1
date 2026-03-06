@@ -36,10 +36,27 @@ export async function encrypt(text: string, password: string): Promise<string> {
 }
 
 export async function decrypt(encryptedBase64: string, password: string): Promise<string> {
-    const str = atob(encryptedBase64);
-    const bytes = new Uint8Array(str.length);
-    for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i);
-    
+    if (!encryptedBase64 || typeof encryptedBase64 !== 'string') {
+        throw new Error('decrypt: invalid input — expected non-empty base64 string');
+    }
+    if (!password || typeof password !== 'string') {
+        throw new Error('decrypt: invalid password');
+    }
+
+    let bytes: Uint8Array;
+    try {
+        const str = atob(encryptedBase64);
+        bytes = new Uint8Array(str.length);
+        for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i);
+    } catch {
+        throw new Error('decrypt: malformed base64 input');
+    }
+
+    const minLength = SALT_LEN + IV_LEN + 1;
+    if (bytes.length < minLength) {
+        throw new Error(`decrypt: ciphertext too short (${bytes.length} < ${minLength})`);
+    }
+
     const salt = bytes.slice(0, SALT_LEN);
     const iv = bytes.slice(SALT_LEN, SALT_LEN + IV_LEN);
     const data = bytes.slice(SALT_LEN + IV_LEN);

@@ -37,9 +37,22 @@ declare global {
     interface Window {
         OneSignal?: OneSignalLike;
         OneSignalDeferred?: Array<(oneSignal: OneSignalLike) => void>;
+        showFatalError?: (message: string, isWatchdog?: boolean) => void;
+        CSSTranslate?: new (x: unknown, y: unknown, z?: unknown) => unknown;
         scheduler?: {
             postTask<T>(callback: () => T | Promise<T>, options?: { priority?: 'user-blocking' | 'user-visible' | 'background'; signal?: AbortSignal; delay?: number }): Promise<T>;
         };
+    }
+
+    interface ViewTransition {
+        readonly finished: Promise<void>;
+        readonly ready: Promise<void>;
+        readonly updateCallbackDone: Promise<void>;
+        skipTransition(): void;
+    }
+
+    interface Document {
+        startViewTransition?(callback?: () => void | Promise<void>): ViewTransition;
     }
 }
 
