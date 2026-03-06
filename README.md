@@ -19,8 +19,11 @@
   <img src="assets/AristotelesPortugues.jpg" alt="Aristóteles (Português)" width="100%" style="border-radius: 10px; border: 1px solid #2a2a2a; display: block; margin: 0 auto;">
 </div>
 
+<br>
+
 Epígrafe do projeto — conecta direto com o propósito do Askesis como **rastreador de hábitos**: consistência e excelência se constroem pela prática diária, e **hábitos** são o mecanismo que o app ajuda a treinar e acompanhar.<br>
 
+<br>
 
 <table>
 <tr>
