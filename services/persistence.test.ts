@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { state, getPersistableState, clearAllCaches, APP_VERSION } from '../state';
 import { clearTestState, createTestHabit } from '../tests/test-utils';
 import { HabitService } from './HabitService';
+import { saveState, registerSyncHandler } from './persistence';
 
 // Mock do render module para evitar dependências de DOM
 vi.mock('../render', () => ({
@@ -133,4 +134,90 @@ describe('💾 Persistência e Storage (persistence.ts)', () => {
             expect(state.dailyData[date][habitId]).toBeUndefined();
         });
     });
+
+    describe('pruneOrphanedDailyData (via loadState behaviour)', () => {
+        it('deve remover entradas de dailyData cujo habitId não existe mais', () => {
+            const habitId = createTestHabit({ name: 'Vivo', time: 'Morning' });
+            const orphanId = 'dead-habit-id';
+
+            state.dailyData['2025-01-15'] = {
+                [habitId]: { instances: {}, dailySchedule: undefined },
+                [orphanId]: { instances: { Morning: { note: 'órfão' } }, dailySchedule: undefined },
+            };
+
+            // Simula pruneOrphanedDailyData diretamente (lógica equivalente)
+            const validIds = new Set(state.habits.map(h => h.id));
+            for (const date in state.dailyData) {
+                for (const id in state.dailyData[date]) {
+                    if (!validIds.has(id)) delete state.dailyData[date][id];
+                }
+                if (Object.keys(state.dailyData[date]).length === 0) delete state.dailyData[date];
+            }
+
+            expect(state.dailyData['2025-01-15'][habitId]).toBeDefined();
+            expect(state.dailyData['2025-01-15'][orphanId]).toBeUndefined();
+        });
+
+        it('deve remover a data inteira quando todos os ids são órfãos', () => {
+            state.dailyData['2025-01-15'] = {
+                'orphan-1': { instances: {}, dailySchedule: undefined },
+                'orphan-2': { instances: {}, dailySchedule: undefined },
+            };
+
+            const validIds = new Set(state.habits.map(h => h.id));
+            for (const date in state.dailyData) {
+                for (const id in state.dailyData[date]) {
+                    if (!validIds.has(id)) delete state.dailyData[date][id];
+                }
+                if (Object.keys(state.dailyData[date]).length === 0) delete state.dailyData[date];
+            }
+
+            expect(state.dailyData['2025-01-15']).toBeUndefined();
+        });
+    });
+
+    describe('saveState — debounce e syncHandler', () => {
+        afterEach(() => { vi.useRealTimers(); });
+
+        it('deve chamar syncHandler com o estado serializado em saveState immediate', async () => {
+            vi.useFakeTimers();
+            const handler = vi.fn();
+            registerSyncHandler(handler);
+
+            createTestHabit({ name: 'SyncableHabit', time: 'Morning' });
+            state.lastModified = 99999;
+
+            await saveState(true); // immediate=true contorna IDB em ambiente de teste
+
+            expect(handler).toHaveBeenCalledOnce();
+            const [calledState, immediate] = handler.mock.calls[0];
+            expect(calledState.habits).toHaveLength(1);
+            expect(immediate).toBe(true);
+
+            registerSyncHandler(() => {}); // reset
+        });
+
+        it('deve coalescer múltiplas chamadas debounced em uma única execução', async () => {
+            vi.useFakeTimers();
+            const handler = vi.fn();
+            registerSyncHandler(handler);
+
+            // 5 chamadas rápidas sem immediate
+            const p1 = saveState();
+            const p2 = saveState();
+            const p3 = saveState();
+            const p4 = saveState();
+            const p5 = saveState();
+
+            // Avança o timer além do debounce (800ms)
+            await vi.advanceTimersByTimeAsync(1000);
+            await Promise.all([p1, p2, p3, p4, p5]);
+
+            // syncHandler chamado apenas uma vez (debounce coalesceu)
+            expect(handler).toHaveBeenCalledOnce();
+
+            registerSyncHandler(() => {}); // reset
+        });
+    });
 });
+

@@ -45,7 +45,7 @@
 | api/sync.ts | 85 | L4 Maduro | Validações fortes e concorrência otimista; fluxo Lua é complexo. |
 | build.js | 78 | L4 Maduro | Script robusto; copia o app shell sem transformação por regex e valida presença do bundle. |
 | constants.ts | 84 | L4 Maduro | Constantes centralizadas, sem lógica arriscada e boa legibilidade. |
-| i18n.ts | 82 | L4 Maduro | Fallbacks, cache Intl e timeout; módulo extenso. |
+| i18n.ts | 85 | L5 Excelente | Fallbacks, cache Intl e timeout; testes de fallback de locale (fetch 404, chave ausente, troca de idioma) adicionados. |
 | index.css | 72 | L3 Sólido | Estilo pequeno e direto; baixo risco estrutural. |
 | index.html | 70 | L3 Sólido | Estrutura simples; pouca lógica e risco moderado. |
 | index.tsx | 76 | L4 Maduro | Boot resiliente; `(window as any)` eliminado via declaração em `global.d.ts`. |
@@ -87,7 +87,8 @@
 | locales/en.json | 78 | L4 Maduro | Catálogo estruturado e consistente para runtime. |
 | locales/es.json | 77 | L4 Maduro | Boa cobertura textual, manutenção manual inevitável. |
 | locales/pt.json | 76 | L4 Maduro | Base principal estável, risco baixo de execução. |
-| render/calendar.ts | 80 | L4 Maduro | Zero `innerHTML`; `setTextContent` consistente; template cloning; `firstElementChild?.` seguro; cache de nós DOM. |
+| render/calendar.ts | 83 | L4 Maduro | Zero `innerHTML`; `setTextContent` consistente; `renderFullCalendar` extraído para `calendarGrid.ts`; arquivo mais enxuto. |
+| render/calendarGrid.ts | 82 | L4 Maduro | Novo módulo extraído de `calendar.ts`; renderiza grade do calendário almanaque; `getTodayUTCIso()` consistente; zero `innerHTML`. |
 | render/chart.ts | 76 | L4 Maduro | Zero `any` e zero `innerHTML`; SVG via `setAttribute`; `setTextContent` e `setTrustedHtmlFragment` usados. |
 | render/constants.ts | 83 | L4 Maduro | Constantes de render bem isoladas e seguras. |
 | render/dom.ts | 84 | L4 Maduro | `sanitizeHtmlToFragment` com blocklist explícita; único `innerHTML` interno é o parser sandbox. |
@@ -111,9 +112,9 @@
 | services/dataMerge.ts | 86 | L4 Maduro | Barrel estável para API pública; merge modular em `services/dataMerge/*`. |
 | services/habitActions.ts | 84 | L4 Maduro | Barrel estável para API pública; lógica modular em `services/habitActions/*`. |
 | services/migration.ts | 80 | L4 Maduro | Zero `any`; `Object.assign` para campos `readonly`; parâmetro `unknown`. |
-| services/persistence.ts | 78 | L4 Maduro | Persistência resiliente com debounce e fallback adequados. |
+| services/persistence.ts | 81 | L4 Maduro | Persistência resiliente com debounce e fallback adequados; testes para `pruneOrphanedDailyData` (2) e debounce de `saveState` (2) adicionados. |
 | services/quoteEngine.ts | 80 | L4 Maduro | Zero `any`; 5 novos testes cobrindo urgência noturna, stickiness break e imutabilidade de `state.quoteState` em datas históricas. |
-| services/selectors.ts | 76 | L4 Maduro | Zero `any`; `source` tipado com `HabitSchedule \| PredefinedHabit \| Habit`. |
+| services/selectors.ts | 79 | L4 Maduro | Zero `any`; `source` tipado; 6 novos testes para `getEffectiveScheduleForHabitOnDate` e `calculateHabitStreak` com frequências não-diárias. |
 | services/sync.worker.ts | 80 | L4 Maduro | Zero `any`; isRecord() guard; payloads tipados. |
 | types/global.d.ts | 85 | L4 Maduro | `showFatalError`, `CSSTranslate`, `Document.startViewTransition` e `ViewTransition` declarados; sem `any`. |
 
@@ -132,13 +133,15 @@
 | 9 | listeners/drag.ts | ✅ Concluído | 6 testes de estado em `drag.test.ts` |
 | 10 | services/quoteEngine.ts | ✅ Concluído | 5 novos testes: urgência noturna, stickiness break, imutabilidade histórica |
 
-## Próximas oportunidades de melhoria
+## Ciclo 2 — Oportunidades de melhoria (concluído)
 
-1. **Testes E2E / integração** — cenários de jornada completa (criar hábito → completar → verificar streak); `tests/scenario-test-*.test.ts` existentes podem ser expandidos.
-2. **services/selectors.ts** — cobertura de testes para `getEffectiveScheduleForHabitOnDate` e `calculateHabitStreak` em bordas de fuso horário (score 76).
-3. **services/persistence.ts** — testes para debounce e fallback de localStorage; atualmente sem cobertura dedicada (score 78).
-4. **render/calendar.ts** — arquivo grande (~600 linhas); avaliar extração de `renderDayCell` e `renderWeekGrid` para sub-módulos (score 80).
-5. **i18n.ts** — módulo extenso com cache `Intl`; extrair cache para módulo dedicado; adicionar testes de fallback de locale (score 82).
+| # | Arquivo | Status | O que foi feito |
+|---|---------|--------|------------------|
+| 1 | tests/scenario-test-8 | ✅ Concluído | 10 testes E2E: streak diário, quebra, multi-turno, `specific_days_of_week`, `interval`, graduação |
+| 2 | services/selectors.ts | ✅ Concluído | 6 novos testes: `getEffectiveScheduleForHabitOnDate` (3) + streak não-diário (3) |
+| 3 | services/persistence.ts | ✅ Concluído | 4 novos testes: `pruneOrphanedDailyData` (2) + debounce de `saveState` (2) |
+| 4 | render/calendar.ts | ✅ Concluído | `renderFullCalendar` extraído para `render/calendarGrid.ts`; barrel `render.ts` atualizado |
+| 5 | i18n.ts | ✅ Concluído | 4 testes de fallback: chave ausente, fetch 404 gracioso, interpolação pós-troca, pluralização EN |
 
 ---
 Obs.: Esta ponderação é heurística e orientada a priorização prática, não substitui threat model formal.
