@@ -18,6 +18,7 @@ import { HABIT_ICONS, UI_ICONS, getTimeOfDayIcon, sanitizeHabitIcon } from './ic
 import { setTextContent, updateReelRotaryARIA } from './dom';
 import { MODAL_COLORS, EXPLORE_STAGGER_DELAY_MS } from './constants';
 import { getContrastColor, parseUTCIsoDate, getTodayUTCIso, getSafeDate, triggerHaptic, isEscapeKeyboardEvent, getNormalizedKeyboardKey } from '../utils';
+import { replaceWithHtmlFragment, buildManageActionButton, buildIconPickerItem, buildColorSwatch, buildFrequencyTypeLabel } from './modalBuilders';
 
 interface ModalContext { element: HTMLElement; previousFocus: HTMLElement | null; onClose?: () => void; firstFocusable?: HTMLElement; lastFocusable?: HTMLElement; }
 const modalStack: ModalContext[] = [];
@@ -36,17 +37,6 @@ interface ConfirmationModalOptions {
 type ManageHabitStatus = 'active' | 'graduated' | 'ended';
 type ManageHabitItem = { h: Habit; st: ManageHabitStatus; name: string; subtitle: string };
 
-function replaceWithHtmlFragment(target: HTMLElement, html: string) {
-    target.replaceChildren(sanitizeHtmlToFragment(html));
-}
-
-function buildManageActionButton(className: string, ariaLabel: string, iconHtml: string): HTMLButtonElement {
-    const btn = document.createElement('button');
-    btn.className = className;
-    btn.setAttribute('aria-label', ariaLabel);
-    replaceWithHtmlFragment(btn, iconHtml);
-    return btn;
-}
 
 function buildManageHabitListItem(item: ManageHabitItem, today: string): HTMLLIElement {
     const { h, st, name, subtitle } = item;
@@ -135,34 +125,6 @@ function computeManageHabitItems(activeHabits: Habit[]): ManageHabitItem[] {
         .sort((a, b) => (order[a.st] - order[b.st]) || compareStrings(a.name, b.name));
 }
 
-function buildIconPickerItem(svg: string): HTMLButtonElement {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'icon-picker-item';
-    btn.dataset.iconSvg = svg;
-    replaceWithHtmlFragment(btn, svg);
-    return btn;
-}
-
-function buildColorSwatch(color: string, selected: boolean): HTMLButtonElement {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `color-swatch${selected ? ' selected' : ''}`;
-    btn.style.backgroundColor = color;
-    btn.dataset.color = color;
-    return btn;
-}
-
-function buildFrequencyTypeLabel(type: Frequency['type'], checked: boolean, label: string): HTMLLabelElement {
-    const wrap = document.createElement('label');
-    const input = document.createElement('input');
-    input.type = 'radio';
-    input.name = 'frequency-type';
-    input.value = type;
-    input.checked = checked;
-    wrap.append(input, label);
-    return wrap;
-}
 
 function buildExploreHabitItem(h: PredefinedHabit, index: number): HTMLElement {
     const item = document.createElement('div');
@@ -326,7 +288,7 @@ export function setupManageModal() {
 
 export function showConfirmationModal(text: string, onConfirm: () => void, opts?: ConfirmationModalOptions) {
     if (opts?.allowHtml) {
-        ui.confirmModalText.replaceChildren(sanitizeHtmlToFragment(text));
+        replaceWithHtmlFragment(ui.confirmModalText, text);
     } else {
         setTextContent(ui.confirmModalText, text);
     }
