@@ -429,7 +429,7 @@ export function openEditModal(habit: Habit | HabitTemplate | null, targetDateOve
             : { ...originalFrequency };
 
         fd = {
-            ...(scheduleToEdit as Partial<HabitTemplate>), // HabitSchedule é compatível estruturalmente com HabitTemplate
+            ...(scheduleToEdit as unknown as Partial<HabitTemplate>), // HabitSchedule é compatível estruturalmente com HabitTemplate
             icon: scheduleToEdit.icon,
             color: scheduleToEdit.color,
             times: [...scheduleToEdit.times] as TimeOfDay[],
