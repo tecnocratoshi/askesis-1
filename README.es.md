@@ -19,8 +19,11 @@
   <img src="assets/AristotelesEspanol.jpg" alt="Aristóteles (Español)" width="100%" style="border-radius: 10px; border: 1px solid #2a2a2a; display: block; margin: 0 auto;">
 </div>
 
+<br>
+
 Proyecto epígrafe — conecta directamente con el propósito de Askesis como **rastreador de hábitos**: la consistencia y la excelencia se construyen a través de la práctica diaria, y los **hábitos** son el mecanismo central que la aplicación te ayuda a entrenar y rastrear.<br>
 
+<br>
 
 <table>
 <tr>
