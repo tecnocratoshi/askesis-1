@@ -39,6 +39,9 @@
     "@google/genai": "^1.40.0",
     "@upstash/redis": "^1.36.2"
   },
+  "overrides": {
+    "serialize-javascript": ">=7.0.3"
+  },
   "devDependencies": {
     "@types/node": "^20.14.8",
     "@vitest/coverage-v8": "^4.0.18",

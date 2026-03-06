@@ -42,15 +42,18 @@ function countBySeverity(vulnerabilities) {
 }
 
 // --- Produção (--omit=dev) ---
+// Nota: prod.data.vulnerabilities contém TODOS os pacotes vulneráveis no JSON,
+// incluindo dev-transitivos. A contagem autoritativa para o escopo --omit=dev
+// está em metadata.vulnerabilities, que npm preenche corretamente.
 const prod = run(['--omit=dev', '--audit-level=' + PROD_LEVEL]);
-const prodCounts = countBySeverity(prod.data.vulnerabilities);
-const prodTotal = prod.data.metadata?.vulnerabilities?.total ?? 0;
+const prodMeta = prod.data.metadata?.vulnerabilities ?? {};
+const prodTotal = prodMeta.total ?? 0;
 
 console.log('[guardrail-audit] Dependências de produção:');
 if (prodTotal === 0) {
     console.log('  ✓ Nenhuma vulnerabilidade encontrada.');
 } else {
-    const { critical, high, moderate, low, info } = prodCounts;
+    const { critical = 0, high = 0, moderate = 0, low = 0, info = 0 } = prodMeta;
     if (critical) console.log(`  CRITICAL: ${critical}`);
     if (high)     console.log(`  HIGH:     ${high}`);
     if (moderate) console.log(`  moderate: ${moderate}`);
@@ -60,14 +63,14 @@ if (prodTotal === 0) {
 
 // --- Dev (inclui tudo, nível moderate) ---
 const dev = run(['--include=dev', '--audit-level=' + DEV_LEVEL]);
-const devCounts = countBySeverity(dev.data.vulnerabilities);
-const devTotal = dev.data.metadata?.vulnerabilities?.total ?? 0;
+const devMeta = dev.data.metadata?.vulnerabilities ?? {};
+const devTotal = devMeta.total ?? 0;
 
 console.log('[guardrail-audit] DevDependencies (informativo):');
 if (devTotal === 0) {
     console.log('  ✓ Nenhuma vulnerabilidade encontrada.');
 } else {
-    const { critical, high, moderate, low, info } = devCounts;
+    const { critical = 0, high = 0, moderate = 0, low = 0, info = 0 } = devMeta;
     if (critical) console.log(`  CRITICAL: ${critical}`);
     if (high)     console.log(`  HIGH:     ${high}`);
     if (moderate) console.log(`  moderate: ${moderate}`);
@@ -76,7 +79,7 @@ if (devTotal === 0) {
 }
 
 // --- Falha CI apenas se prod tiver high/critical ---
-const prodFail = (prodCounts.critical + prodCounts.high) > 0;
+const prodFail = ((prodMeta.critical ?? 0) + (prodMeta.high ?? 0)) > 0;
 
 if (prodFail) {
     console.error(
