@@ -195,34 +195,43 @@ export function prependDayToStrip(firstDateISO: string, container: Node = ui.cal
 /**
  * Rola a fita para posicionar o elemento selecionado.
  * LÓGICA CONTEXTUAL: "Hoje" alinha à direita (histórico), outros centralizam.
+ *
+ * IMPORTANTE: usa getBoundingClientRect() ao invés de offsetLeft para obter
+ * dimensões já calculadas pelo browser, independente de DPR ou resolução de tela.
+ * offsetLeft pode estar desatualizado se lido antes do reflow terminar.
  */
 export function scrollToSelectedDate(smooth = true) {
     if (!ui.calendarStrip) return;
-    
-    requestAnimationFrame(() => {
-        const selectedEl = ui.calendarStrip.querySelector(`.${CSS_CLASSES.SELECTED}`) as HTMLElement;
-        
-        if (selectedEl) {
-            const stripWidth = ui.calendarStrip.clientWidth;
-            const elLeft = selectedEl.offsetLeft;
-            const elWidth = selectedEl.offsetWidth;
-            const isToday = selectedEl.classList.contains(CSS_CLASSES.TODAY);
-            
-            let targetScroll;
 
-            if (isToday) {
-                // ALIGN END (Right): Prioriza o passado imediato
-                const paddingRight = 10;
-                targetScroll = (elLeft + elWidth) - stripWidth + paddingRight;
-            } else {
-                // ALIGN CENTER: Contexto balanceado
-                targetScroll = elLeft - (stripWidth / 2) + (elWidth / 2);
-            }
-            
-            ui.calendarStrip.scrollTo({
-                left: targetScroll,
-                behavior: smooth ? 'smooth' : 'auto'
-            });
+    // Duplo rAF garante que o browser completou reflow + paint antes de ler dimensões.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        const selectedEl = ui.calendarStrip.querySelector(`.${CSS_CLASSES.SELECTED}`) as HTMLElement;
+
+        if (!selectedEl) return;
+
+        const stripRect = ui.calendarStrip.getBoundingClientRect();
+        const elRect = selectedEl.getBoundingClientRect();
+        const currentScroll = ui.calendarStrip.scrollLeft;
+        const isToday = selectedEl.classList.contains(CSS_CLASSES.TODAY);
+
+        let targetScroll: number;
+
+        if (isToday) {
+            // ALIGN END: o dia atual fica no limite direito visível, deixando o histórico à esquerda.
+            // elRect.right - stripRect.right = gap entre a borda direita do elemento e a do container.
+            // Somando ao scrollLeft atual obtemos o scroll exato sem depender de offsetLeft.
+            const paddingRight = 10;
+            targetScroll = currentScroll + (elRect.right - stripRect.right) + paddingRight;
+        } else {
+            // ALIGN CENTER: posiciona o elemento no centro da fita.
+            const elCenter = elRect.left + elRect.width / 2;
+            const stripCenter = stripRect.left + stripRect.width / 2;
+            targetScroll = currentScroll + (elCenter - stripCenter);
         }
-    });
+
+        ui.calendarStrip.scrollTo({
+            left: targetScroll,
+            behavior: smooth ? 'smooth' : 'auto'
+        });
+    }));
 }
