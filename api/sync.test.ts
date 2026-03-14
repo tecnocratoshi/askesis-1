@@ -32,7 +32,7 @@ function makePostRequest(body: unknown) {
 }
 
 function makeRawPostRequest(body: string, headers?: Record<string, string>) {
-  return new Request('https://askesis.vercel.app/api/sync', {
+  const request = new Request('https://askesis.vercel.app/api/sync', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -42,6 +42,21 @@ function makeRawPostRequest(body: string, headers?: Record<string, string>) {
     },
     body
   });
+
+  const overriddenHeaders = new Map<string, string>();
+  for (const [key, value] of Object.entries(headers || {})) {
+    overriddenHeaders.set(key.toLowerCase(), value);
+  }
+
+  return {
+    method: request.method,
+    text: () => request.text(),
+    headers: {
+      get(name: string) {
+        return overriddenHeaders.get(name.toLowerCase()) ?? request.headers.get(name);
+      }
+    }
+  } as Request;
 }
 
 function makePostRequestWithLegacyBearer(body: unknown, rawKey = 'legacy-sync-key') {
