@@ -9,13 +9,27 @@
  */
 
 import { generateUUID, logger } from '../utils';
-import {
-    type WorkerTaskType,
-    type WorkerTaskMessage,
-    type WorkerResponseMessage
-} from '../contracts/worker';
 
-export type { WorkerTaskType, WorkerTaskMessage, WorkerResponseMessage };
+export type WorkerTaskType =
+    | 'encrypt'
+    | 'encrypt-json'
+    | 'decrypt'
+    | 'decrypt-with-hash'
+    | 'build-ai-prompt'
+    | 'build-quote-analysis-prompt'
+    | 'prune-habit'
+    | 'archive';
+
+export type WorkerTaskMessage = {
+    id: string;
+    type: WorkerTaskType;
+    payload: any;
+    key?: string;
+};
+
+type WorkerResponseMessage =
+    | { id: string; status: 'success'; result: any }
+    | { id: string; status: 'error'; error: string };
 
 type PendingCallback = {
     resolve: (val: any) => void;
@@ -82,8 +96,8 @@ export function runWorkerTask<T>(
     return new Promise<T>((resolve, reject) => {
         const id = generateUUID();
         const timeoutId = window.setTimeout(() => {
-            pending.delete(id);
-            reject(new Error('Worker timeout'));
+            if (!pending.has(id)) return;
+            resetWorker('Worker timeout');
         }, timeoutMs);
 
         pending.set(id, { resolve, reject, timeoutId });
