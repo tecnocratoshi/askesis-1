@@ -57,9 +57,31 @@ class MockWorker {
     }
 }
 
+class TimeoutThenSuccessWorker {
+    static attempts = 0;
+    onmessage: ((e: MessageEvent) => void) | null = null;
+    onerror: ((e: Event) => void) | null = null;
+
+    postMessage(msg: any) {
+        const { id, type, payload } = msg;
+        if (type === 'encrypt-json') {
+            TimeoutThenSuccessWorker.attempts += 1;
+            if (TimeoutThenSuccessWorker.attempts === 1) {
+                return;
+            }
+            this.onmessage?.({ data: { id, status: 'success', result: `enc:${payload}` } } as MessageEvent);
+            return;
+        }
+        this.onmessage?.({ data: { id, status: 'success', result: payload } } as MessageEvent);
+    }
+
+    terminate() {}
+}
+
 beforeEach(() => {
     clearTestState();
     vi.clearAllMocks();
+    localStorage.clear();
     // @ts-expect-error - test override
     globalThis.Worker = MockWorker;
 });
@@ -171,6 +193,129 @@ describe('cloud sync basics', () => {
             await vi.advanceTimersByTimeAsync(1600);
             expect(apiFetch).toHaveBeenCalledTimes(2);
             expect(state.syncState).toBe('syncSynced');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('mantem o snapshot mais recente pendente enquanto um envio anterior está em progresso', async () => {
+        vi.useFakeTimers();
+        try {
+            const { apiFetch, getSyncKey, hasLocalSyncKey } = await import('./api');
+            vi.mocked(hasLocalSyncKey).mockReturnValue(true);
+            vi.mocked(getSyncKey).mockReturnValue('k');
+
+            let resolveFirst: ((value: any) => void) | null = null;
+            vi.mocked(apiFetch)
+                .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }) as any)
+                .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) } as any);
+
+            const habitId = createTestHabit({ name: 'Queued Habit', time: 'Morning', goalType: 'check' });
+
+            HabitService.setStatus(habitId, '2024-01-01', 'Morning', 1);
+            state.lastModified = 100;
+            const firstSnapshot = getPersistableState();
+
+            const { syncStateWithCloud } = await import('./cloud');
+            syncStateWithCloud(firstSnapshot, true);
+
+            HabitService.setStatus(habitId, '2024-01-02', 'Morning', 1);
+            state.lastModified = 200;
+            const secondSnapshot = getPersistableState();
+            syncStateWithCloud(secondSnapshot, true);
+
+            expect(apiFetch).toHaveBeenCalledTimes(1);
+
+            resolveFirst?.({ ok: true, status: 200, json: async () => ({}) } as any);
+            await vi.runAllTimersAsync();
+
+            expect(apiFetch).toHaveBeenCalledTimes(2);
+            const [, secondCallOptions] = vi.mocked(apiFetch).mock.calls[1];
+            const secondPayload = JSON.parse(secondCallOptions!.body as string);
+            expect(secondPayload.lastModified).toBe(200);
+            expect(Object.keys(secondPayload.shards)).toContain('logs:2024-01');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('envia If-None-Match em pulls subsequentes quando já possui ETag remoto', async () => {
+        const { apiFetch, getSyncKey, hasLocalSyncKey } = await import('./api');
+        vi.mocked(hasLocalSyncKey).mockReturnValue(true);
+        vi.mocked(getSyncKey).mockReturnValue('k');
+        vi.mocked(apiFetch)
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                headers: new Headers({ ETag: '"etag-1"' }),
+                json: async () => ({ lastModified: '2000', core: 'coreEnc', 'logs:2024-01': 'logsEnc' })
+            } as any)
+            .mockResolvedValueOnce({
+                ok: false,
+                status: 304,
+                headers: new Headers({ ETag: '"etag-1"' }),
+                json: async () => ({})
+            } as any);
+
+        const { fetchStateFromCloud } = await import('./cloud');
+        await fetchStateFromCloud();
+        await fetchStateFromCloud();
+
+        const [, secondCallOptions] = vi.mocked(apiFetch).mock.calls[1];
+        const secondHeaders = new Headers(secondCallOptions?.headers);
+        expect(secondHeaders.get('If-None-Match')).toBe('"etag-1"');
+    });
+
+    it('restaura checkpoint local quando a persistencia do merge em conflito falha', async () => {
+        const { apiFetch, getSyncKey, hasLocalSyncKey } = await import('./api');
+        const { persistStateLocally, loadState } = await import('./persistence');
+
+        vi.mocked(hasLocalSyncKey).mockReturnValue(true);
+        vi.mocked(getSyncKey).mockReturnValue('k');
+        vi.mocked(apiFetch).mockResolvedValueOnce({
+            ok: false,
+            status: 409,
+            json: async () => ({ lastModified: '2000', core: 'coreEnc', 'logs:2024-01': 'logsEnc' })
+        } as any);
+
+        vi.mocked(persistStateLocally)
+            .mockRejectedValueOnce(new Error('IDB quota exceeded'))
+            .mockResolvedValueOnce();
+
+        const localHabitId = createTestHabit({ name: 'Local Before Conflict', time: 'Morning', goalType: 'check' });
+        HabitService.setStatus(localHabitId, '2024-01-01', 'Morning', 1);
+        state.lastModified = 1000;
+
+        const snapshot = getPersistableState();
+        const { syncStateWithCloud } = await import('./cloud');
+        syncStateWithCloud(snapshot, true);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(persistStateLocally).toHaveBeenCalledTimes(2);
+        const rollbackArg = vi.mocked(loadState).mock.calls[0]?.[0] as ReturnType<typeof getPersistableState>;
+        expect(rollbackArg.habits.some(h => h.id === localHabitId)).toBe(true);
+        expect(localStorage.getItem('askesis_sync_conflict_backup')).toBeNull();
+        expect(state.syncState).toBe('syncError');
+    });
+
+    it('faz retry de tarefa pesada quando o worker estoura timeout', async () => {
+        vi.useFakeTimers();
+        try {
+            vi.resetModules();
+            TimeoutThenSuccessWorker.attempts = 0;
+            // @ts-expect-error - test override
+            globalThis.Worker = TimeoutThenSuccessWorker;
+
+            const { runWorkerTask } = await import('./cloud');
+            const taskPromise = runWorkerTask<string>('encrypt-json', '{"hello":"world"}', 'k');
+
+            await vi.advanceTimersByTimeAsync(16000);
+            await vi.runAllTimersAsync();
+
+            await expect(taskPromise).resolves.toBe('enc:{"hello":"world"}');
+            expect(TimeoutThenSuccessWorker.attempts).toBe(2);
         } finally {
             vi.useRealTimers();
         }
