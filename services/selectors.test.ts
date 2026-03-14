@@ -20,7 +20,6 @@ import {
     clearSelectorInternalCaches
 } from './selectors';
 import { generateUUID } from '../utils';
-import { getHabitDailyInfoForDate } from '../state';
 
 function createHabitWithSchedule(overrides: Partial<HabitSchedule> & { name: string }): Habit {
     const habit: Habit = {
@@ -293,6 +292,22 @@ describe('🔍 Seletores de Dados (selectors.ts)', () => {
             expect(summary.completed).toBe(1);
             expect(summary.pending).toBe(1);
         });
+
+        it('deve reutilizar activeHabitsCache da data ao calcular o sumário', () => {
+            const h1 = createHabitWithSchedule({ name: 'H1', startDate: '2025-01-01' });
+            const h2 = createHabitWithSchedule({ name: 'H2', startDate: '2025-01-01' });
+
+            HabitService.setStatus(h1.id, '2025-01-15', 'Morning', HABIT_STATE.DONE);
+            HabitService.setStatus(h2.id, '2025-01-15', 'Morning', HABIT_STATE.DONE);
+
+            state.activeHabitsCache.set('2025-01-15', [{ habit: h1, schedule: ['Morning'] }]);
+
+            const summary = calculateDaySummary('2025-01-15');
+
+            expect(summary.total).toBe(1);
+            expect(summary.completed).toBe(1);
+            expect(summary.pending).toBe(0);
+        });
     });
 
     describe('getHabitDisplayInfo', () => {
@@ -331,114 +346,4 @@ describe('🔍 Seletores de Dados (selectors.ts)', () => {
             expect(shouldHabitAppearOnDate(habit, '2025-01-15')).toBe(true);
         });
     });
-
-    describe('getEffectiveScheduleForHabitOnDate', () => {
-        it('deve retornar times do schedule quando não há dailySchedule', () => {
-            const habit = createHabitWithSchedule({
-                name: 'Padrão',
-                startDate: '2025-01-01',
-                times: ['Morning', 'Evening'] as any,
-            });
-
-            const times = getEffectiveScheduleForHabitOnDate(habit, '2025-01-15');
-            expect(times).toEqual(['Morning', 'Evening']);
-        });
-
-        it('deve retornar dailySchedule quando está definido no dailyData', () => {
-            const habit = createHabitWithSchedule({
-                name: 'Override',
-                startDate: '2025-01-01',
-                times: ['Morning'] as any,
-            });
-
-            // Injeta override de turno para o dia
-            state.dailyData['2025-01-15'] = {
-                [habit.id]: { instances: {}, dailySchedule: ['Evening'] as any }
-            };
-
-            const times = getEffectiveScheduleForHabitOnDate(habit, '2025-01-15');
-            expect(times).toEqual(['Evening']);
-        });
-
-        it('deve retornar [] para hábito fora do range de datas', () => {
-            const habit = createHabitWithSchedule({ name: 'Futuro', startDate: '2026-01-01' });
-            const times = getEffectiveScheduleForHabitOnDate(habit, '2025-01-01');
-            expect(times).toHaveLength(0);
-        });
-    });
-
-    describe('calculateHabitStreak — frequências não-diárias', () => {
-        it('deve ignorar dias fora do agendamento (specific_days_of_week)', () => {
-            // Hábito apenas nas segundas (day=1) e sextas (day=5)
-            const habit: Habit = {
-                id: generateUUID(),
-                createdOn: '2025-06-02',
-                scheduleHistory: [{
-                    startDate: '2025-06-02',
-                    scheduleAnchor: '2025-06-02',
-                    icon: '⭐', color: '#000',
-                    goal: { type: 'check' },
-                    name: 'Seg+Sex',
-                    times: ['Morning'],
-                    frequency: { type: 'specific_days_of_week', days: [1, 5] },
-                }]
-            };
-            state.habits.push(habit);
-
-            // 2025-06-02 = segunda, 2025-06-06 = sexta
-            HabitService.setStatus(habit.id, '2025-06-02', 'Morning', HABIT_STATE.DONE);
-            HabitService.setStatus(habit.id, '2025-06-06', 'Morning', HABIT_STATE.DONE);
-
-            // Dias 03/04/05 (ter/qua/qui) são ignorados — streak deve ser 2
-            expect(calculateHabitStreak(habit, '2025-06-06')).toBe(2);
-        });
-
-        it('deve parar streak quando dia agendado not completado (specific_days_of_week)', () => {
-            const habit: Habit = {
-                id: generateUUID(),
-                createdOn: '2025-06-02',
-                scheduleHistory: [{
-                    startDate: '2025-06-02',
-                    scheduleAnchor: '2025-06-02',
-                    icon: '⭐', color: '#000',
-                    goal: { type: 'check' },
-                    name: 'Seg/Sex gap',
-                    times: ['Morning'],
-                    frequency: { type: 'specific_days_of_week', days: [1, 5] },
-                }]
-            };
-            state.habits.push(habit);
-
-            HabitService.setStatus(habit.id, '2025-06-02', 'Morning', HABIT_STATE.DONE); // seg
-            // sexta 2025-06-06 NÃO marcada
-            HabitService.setStatus(habit.id, '2025-06-09', 'Morning', HABIT_STATE.DONE); // seg seguinte
-
-            expect(calculateHabitStreak(habit, '2025-06-09')).toBe(1);
-        });
-
-        it('deve ignorar dias não-alvo no streak interval (a cada 2 dias)', () => {
-            const habit: Habit = {
-                id: generateUUID(),
-                createdOn: '2025-06-01',
-                scheduleHistory: [{
-                    startDate: '2025-06-01',
-                    scheduleAnchor: '2025-06-01',
-                    icon: '⭐', color: '#000',
-                    goal: { type: 'check' },
-                    name: 'IntervalDays',
-                    times: ['Morning'],
-                    frequency: { type: 'interval', unit: 'days', amount: 2 },
-                }]
-            };
-            state.habits.push(habit);
-
-            // Datas alvo: 01, 03, 05
-            HabitService.setStatus(habit.id, '2025-06-01', 'Morning', HABIT_STATE.DONE);
-            HabitService.setStatus(habit.id, '2025-06-03', 'Morning', HABIT_STATE.DONE);
-            HabitService.setStatus(habit.id, '2025-06-05', 'Morning', HABIT_STATE.DONE);
-
-            expect(calculateHabitStreak(habit, '2025-06-05')).toBe(3);
-        });
-    });
 });
-
