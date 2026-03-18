@@ -11,7 +11,6 @@
  */
 
 import { state, getHabitDailyInfoForDate, TimeOfDay } from '../state';
-import { createAnalyzeRequest, parseAnalyzeDailyDiagnosisText } from '../contracts/api-analyze';
 import { runWorkerTask } from './cloud';
 import { apiFetch } from './api';
 import { t, getAiLanguageName } from '../i18n';
@@ -117,7 +116,7 @@ export async function checkAndAnalyzeDayContext(dateISO: string) {
 
             const res = await apiFetch('/api/analyze', { 
                 method: 'POST', 
-                body: JSON.stringify(createAnalyzeRequest(prompt, systemInstruction)) 
+                body: JSON.stringify({ prompt, systemInstruction }) 
             });
 
             if (!res.ok) {
@@ -125,10 +124,8 @@ export async function checkAndAnalyzeDayContext(dateISO: string) {
             }
             
             const rawText = await res.text();
-            const json = parseAnalyzeDailyDiagnosisText(rawText);
-            if (!json) {
-                throw new Error('Invalid AI diagnosis payload');
-            }
+            const jsonStr = rawText.replace(/```json|```/g, '').trim();
+            const json = JSON.parse(jsonStr);
             
             if (json?.analysis) { 
                 state.dailyDiagnoses[dateISO] = { 

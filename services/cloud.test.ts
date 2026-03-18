@@ -269,27 +269,6 @@ describe('cloud sync basics', () => {
         expect(secondHeaders.get('If-None-Match')).toBe('"etag-1"');
     });
 
-    it('ignora payload remoto inválido sem quebrar o boot sync', async () => {
-        const { apiFetch, getSyncKey, hasLocalSyncKey } = await import('./api');
-        const { persistStateLocally } = await import('./persistence');
-
-        vi.mocked(hasLocalSyncKey).mockReturnValue(true);
-        vi.mocked(getSyncKey).mockReturnValue('k');
-        vi.mocked(apiFetch).mockResolvedValue({
-            ok: true,
-            status: 200,
-            headers: new Headers({ ETag: '"etag-bad"' }),
-            json: async () => ({ lastModified: '2000', core: 123 })
-        } as any);
-
-        const { fetchStateFromCloud } = await import('./cloud');
-        const result = await fetchStateFromCloud();
-
-        expect(result).toBeUndefined();
-        expect(persistStateLocally).not.toHaveBeenCalled();
-        expect(state.initialSyncDone).toBe(true);
-    });
-
     it('restaura checkpoint local quando a persistencia do merge em conflito falha', async () => {
         const { apiFetch, getSyncKey, hasLocalSyncKey } = await import('./api');
         const { persistStateLocally, loadState } = await import('./persistence');

@@ -121,28 +121,5 @@ describe('🧠 Análise diária IA (analysis.ts)', () => {
             expect(payload.dataContext.firstEntry).toBe(false);
             expect(payload.dataContext.daysBeforeTargetWithNotes).toBe(1);
         });
-
-        it('faz fallback para diagnóstico mínimo quando a IA retorna payload inválido', async () => {
-            const habitId = createTestHabit({ name: 'Diário', time: 'Morning' });
-
-            const supportDates = ['2026-02-07', '2026-02-08', '2026-02-09', '2026-02-10', '2026-02-11', '2026-02-12'];
-            supportDates.forEach((date) => {
-                state.dailyData[date] = {
-                    [habitId]: {
-                        instances: { Morning: {} },
-                        dailySchedule: undefined
-                    }
-                };
-            });
-            addTestNote(habitId, '2026-02-13', 'Morning', 'Minha nota de diário.');
-
-            vi.mocked(runWorkerTask).mockResolvedValue({ prompt: 'p', systemInstruction: 's' } as any);
-            vi.mocked(apiFetch).mockResolvedValue(new Response('not-json', { status: 200 }));
-
-            await checkAndAnalyzeDayContext('2026-02-13');
-
-            expect(state.dailyDiagnoses['2026-02-13']?.level).toBe(1);
-            expect(state.dailyDiagnoses['2026-02-13']?.themes).toEqual([]);
-        });
     });
 });

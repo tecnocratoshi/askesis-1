@@ -6,13 +6,6 @@
 
 import { Redis } from '@upstash/redis';
 import {
-    SYNC_MAX_REQUEST_BODY_BYTES,
-    SYNC_MAX_SHARDS_PER_REQUEST,
-    SYNC_MAX_SHARD_VALUE_BYTES,
-    SYNC_MAX_TOTAL_SHARDS_BYTES,
-    validateSyncPostRequest
-} from '../contracts/api-sync';
-import {
     checkRateLimit,
     getClientIp,
     getCorsOrigin as getCorsOriginFromRules,
@@ -70,6 +63,11 @@ redis.call("HSET", key, "lastModified", newTs)
 return { "OK" }
 `;
 
+const MAX_SHARDS_PER_REQUEST = 256;
+const MAX_SHARD_VALUE_BYTES = 512 * 1024; // 512KB por shard
+const MAX_TOTAL_SHARDS_BYTES = 4 * 1024 * 1024; // 4MB total
+const MAX_REQUEST_BODY_BYTES = 5 * 1024 * 1024; // 5MB total bruto
+
 const ALLOWED_ORIGINS = parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS);
 const CORS_STRICT = process.env.CORS_STRICT === '1';
 const ALLOW_LEGACY_SYNC_AUTH = process.env.ALLOW_LEGACY_SYNC_AUTH === '1';
@@ -104,7 +102,7 @@ function isRequestBodyTooLarge(req: Request): boolean {
     if (!contentLength) return false;
 
     const parsed = Number(contentLength);
-    return Number.isFinite(parsed) && parsed > SYNC_MAX_REQUEST_BODY_BYTES;
+    return Number.isFinite(parsed) && parsed > MAX_REQUEST_BODY_BYTES;
 }
 
 async function sha256(message: string) {
@@ -218,7 +216,7 @@ export default async function handler(req: Request) {
 
             const rawBody = await req.text();
             const rawBodyBytes = new TextEncoder().encode(rawBody).length;
-            if (rawBodyBytes > SYNC_MAX_REQUEST_BODY_BYTES) {
+            if (rawBodyBytes > MAX_REQUEST_BODY_BYTES) {
                 return new Response(JSON.stringify({ error: 'Payload too large', code: 'PAYLOAD_TOO_LARGE', detail: 'body' }), { status: 413, headers: HEADERS_BASE });
             }
 
@@ -228,30 +226,36 @@ export default async function handler(req: Request) {
             } catch {
                 return new Response(JSON.stringify({ error: 'Invalid JSON', code: 'INVALID_JSON' }), { status: 400, headers: HEADERS_BASE });
             }
-            const parsedRequest = validateSyncPostRequest(body);
-            if (!parsedRequest.ok) {
-                return new Response(JSON.stringify({
-                    error: parsedRequest.error,
-                    code: parsedRequest.code,
-                    detail: parsedRequest.detail,
-                    detailType: parsedRequest.detailType
-                }), {
-                    status: parsedRequest.code === 'SHARD_LIMIT_EXCEEDED' ? 413 : 400,
-                    headers: HEADERS_BASE
-                });
+            const { lastModified, shards } = body;
+
+            if (lastModified === undefined) {
+                return new Response(JSON.stringify({ error: 'Missing lastModified' }), { status: 400, headers: HEADERS_BASE });
+            }
+            if (!shards || typeof shards !== 'object' || Array.isArray(shards)) {
+                return new Response(JSON.stringify({ error: 'Invalid or missing shards' }), { status: 400, headers: HEADERS_BASE });
             }
 
-            const { lastModified: lastModifiedNum, shards } = parsedRequest.value;
             const shardEntries = Object.entries(shards);
+            if (shardEntries.length > MAX_SHARDS_PER_REQUEST) {
+                return new Response(JSON.stringify({ error: 'Too many shards', code: 'SHARD_LIMIT_EXCEEDED' }), { status: 413, headers: HEADERS_BASE });
+            }
+
+            const lastModifiedNum = Number(lastModified);
+            if (!Number.isFinite(lastModifiedNum)) {
+                return new Response(JSON.stringify({ error: 'Invalid lastModified', code: 'INVALID_TS' }), { status: 400, headers: HEADERS_BASE });
+            }
 
             let totalBytes = 0;
             for (const [shardName, shardValue] of shardEntries) {
+                if (typeof shardValue !== 'string') {
+                    return new Response(JSON.stringify({ error: 'Invalid shard type', code: 'INVALID_SHARD_TYPE', detail: shardName, detailType: typeof shardValue }), { status: 400, headers: HEADERS_BASE });
+                }
                 const shardBytes = new TextEncoder().encode(shardValue).length;
-                if (shardBytes > SYNC_MAX_SHARD_VALUE_BYTES) {
+                if (shardBytes > MAX_SHARD_VALUE_BYTES) {
                     return new Response(JSON.stringify({ error: 'Shard too large', code: 'SHARD_TOO_LARGE', detail: shardName }), { status: 413, headers: HEADERS_BASE });
                 }
                 totalBytes += shardBytes;
-                if (totalBytes > SYNC_MAX_TOTAL_SHARDS_BYTES) {
+                if (totalBytes > MAX_TOTAL_SHARDS_BYTES) {
                     return new Response(JSON.stringify({ error: 'Payload too large', code: 'PAYLOAD_TOO_LARGE' }), { status: 413, headers: HEADERS_BASE });
                 }
             }

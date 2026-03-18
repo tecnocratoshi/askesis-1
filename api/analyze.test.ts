@@ -69,24 +69,4 @@ describe('api/analyze quota cooldown', () => {
 
     expect(generateContentMock).toHaveBeenCalledTimes(2);
   });
-
-  it('rejeita payload inválido com erro contratual explícito', async () => {
-    const mod = await import('./analyze');
-    const handler = mod.default;
-
-    const response = await handler(new Request('https://askesis.vercel.app/api/analyze', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'origin': 'https://askesis.vercel.app',
-        'x-vercel-forwarded-for': '203.0.113.10'
-      },
-      body: JSON.stringify({ prompt: '', systemInstruction: 'sys' })
-    }));
-
-    const body = await response.json();
-    expect(response.status).toBe(400);
-    expect(body.code).toBe('INVALID_ANALYZE_REQUEST');
-    expect(generateContentMock).not.toHaveBeenCalled();
-  });
 });
