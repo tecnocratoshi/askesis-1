@@ -5,6 +5,7 @@
 */
 
 import { GoogleGenAI } from '@google/genai';
+import { validateAnalyzeRequest } from '../contracts/api-analyze';
 import {
     checkRateLimit,
     getClientIp,
@@ -153,10 +154,18 @@ export default async function handler(req: Request) {
         if (bodyText === 'TIMEOUT') return new Response(null, { status: 408 });
         if (bodyText.length > MAX_PROMPT_SIZE) return new Response(null, { status: 413 });
 
-        const body = JSON.parse(bodyText);
-        const { prompt, systemInstruction } = body;
+        const parsedRequest = validateAnalyzeRequest(JSON.parse(bodyText));
+        if (!parsedRequest.ok) {
+            return new Response(JSON.stringify({ error: parsedRequest.error, code: parsedRequest.code }), {
+                status: 400,
+                headers: {
+                    ...CORS_HEADERS,
+                    'Content-Type': 'application/json'
+                }
+            });
+        }
 
-        if (!prompt || !systemInstruction) return new Response(null, { status: 400 });
+        const { prompt, systemInstruction } = parsedRequest.value;
 
         const cacheKey = await computeCacheKey(prompt, systemInstruction);
         const cached = getCachedResponse(cacheKey);

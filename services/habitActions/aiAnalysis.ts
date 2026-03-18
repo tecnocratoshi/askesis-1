@@ -11,6 +11,7 @@
 import {
     state, HabitDailyInfo, AI_DAILY_LIMIT
 } from '../../state';
+import { createAnalyzeRequest } from '../../contracts/api-analyze';
 import {
     getTodayUTCIso, parseUTCIsoDate, addDays, toUTCIsoDateString,
     logger, escapeHTML
@@ -101,7 +102,7 @@ export async function performAIAnalysis(type: 'monthly' | 'quarterly' | 'histori
 
         if (id !== state.aiReqId) return;
 
-        const res = await apiFetch('/api/analyze', { method: 'POST', body: JSON.stringify({ prompt, systemInstruction }) });
+        const res = await apiFetch('/api/analyze', { method: 'POST', body: JSON.stringify(createAnalyzeRequest(prompt, systemInstruction)) });
 
         if (!res.ok) {
             let errorDetail = `Status ${res.status}`;

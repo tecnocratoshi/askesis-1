@@ -9,6 +9,12 @@
  */
 
 import { AppState, state, getPersistableState } from '../state';
+import {
+    createSyncPostRequest,
+    normalizeSyncPostResponse,
+    parseSyncServerShards,
+    type SyncServerShards
+} from '../contracts/api-sync';
 import { loadState, persistStateLocally } from './persistence';
 import { pushToOneSignal, createDebounced, logger, escapeHTML } from '../utils';
 import { ui } from '../render/ui';
@@ -484,7 +490,7 @@ async function performSync() {
         const safeTs = appState.lastModified || Date.now();
         
         const payloadStart = performance.now();
-        const payload = { lastModified: safeTs, shards: encryptedShards };
+        const payload = createSyncPostRequest(safeTs, encryptedShards);
         const payloadBody = JSON.stringify(payload);
         const payloadEnd = performance.now();
 
@@ -497,10 +503,14 @@ async function performSync() {
 
         if (response.status === 409) {
             clearSyncHashCache();
-            await resolveConflictWithServerState(await response.json());
+            const conflictPayload = parseSyncServerShards(await response.json());
+            if (!conflictPayload) {
+                throw new Error('Invalid conflict payload from sync server');
+            }
+            await resolveConflictWithServerState(conflictPayload);
         } else if (response.ok) {
             try {
-                const payload = await response.json();
+                const payload = normalizeSyncPostResponse(await response.json());
                 if (payload?.fallback) {
                     addSyncLog("Fallback sem Lua aplicado.", "info");
                 }
@@ -574,7 +584,7 @@ export async function pullRemoteChanges(): Promise<void> {
     await fetchStateFromCloud();
 }
 
-async function reconstructStateFromShards(shards: Record<string, string>): Promise<AppState | undefined> {
+async function reconstructStateFromShards(shards: SyncServerShards): Promise<AppState | undefined> {
     const syncKey = getSyncKey();
     if (!syncKey) return undefined;
     try {
@@ -596,7 +606,7 @@ export async function downloadRemoteState(): Promise<AppState | undefined> {
         throw new Error(parsed.message);
     }
     updateStoredRemoteStateEtagFromResponse(response);
-    const shards = await response.json();
+    const shards = parseSyncServerShards(await response.json());
     if (!shards || Object.keys(shards).length === 0) { addSyncLog("Cofre vazio na nuvem.", "info"); return undefined; }
     addSyncLog("Dados baixados com sucesso.", "success");
     return await reconstructStateFromShards(shards);
@@ -617,7 +627,7 @@ export async function fetchStateFromCloud(): Promise<AppState | undefined> {
         }
         if (!response.ok) throw new Error("Cloud fetch failed with status " + response.status);
         updateStoredRemoteStateEtagFromResponse(response);
-        const shards = await response.json();
+        const shards = parseSyncServerShards(await response.json());
         if (!shards || Object.keys(shards).length === 0) {
             state.initialSyncDone = true;
             return undefined;
