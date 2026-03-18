@@ -129,18 +129,19 @@ export async function checkAndAnalyzeDayContext(dateISO: string) {
             const jsonStr = rawText.replace(/```json|```/g, '').trim();
             const json = JSON.parse(jsonStr);
             
-            if (json?.analysis) { 
+            const level = json?.analysis?.determined_level;
+            const themes = Array.isArray(json?.relevant_themes) ? json.relevant_themes : [];
+            if (level && (level === 1 || level === 2 || level === 3)) { 
                 state.dailyDiagnoses[dateISO] = { 
-                    level: json.analysis.determined_level, 
-                    themes: json.relevant_themes, 
+                    level, 
+                    themes, 
                     timestamp: Date.now() 
                 }; 
                 saveState(); 
             }
         } catch (e: unknown) { 
             logger.error("Context analysis failed", e);
-            // Fallback to level 1 on error, as 'error' string is invalid for StoicLevel type
-            state.dailyDiagnoses[dateISO] = { level: 1, themes: [], timestamp: Date.now() };
+            // Don't write fake diagnosis on error — allow retry on next call
         } finally { 
             _analysisInFlight.delete(dateISO); 
         }
